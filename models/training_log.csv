@@ -1,0 +1,2 @@
+epoch,train_loss,val_loss,train_ppl,val_ppl,gap_ratio,lr,grad_norm,dropout,teacher_ratio,contrastive_loss,mixup_batches
+1,7.4999,6.1040,1807.82,447.64,0.25,5.00e-07,0.588,0.350,0.00,0.0000,17

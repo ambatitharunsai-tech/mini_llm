@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Model checkpoints (large binary files)
+models/*.pth
+models/*.bin
+checkpoints/
+
+# Data files (large)
+data/*.csv
+
+# Other large files
+*.zip
+*.tar.gz
+
+# Memory/FAISS
+models/faiss_index.bin
+memory/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/

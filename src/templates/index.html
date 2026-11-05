@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hema AI</title>
+    <!-- Aligned fonts to match the CSS exactly -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Markdown & Sanitization -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    
+    <!-- Code Syntax Highlighting (Highlight.js) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+<div class="app-wrapper">
+
+    <div class="mobile-overlay" id="mobile-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- ── Sidebar ─────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-lockup">
+                <svg width="26" height="26" viewBox="0 0 200 200" fill="none">
+                    <circle cx="100" cy="100" r="80" stroke="rgba(255,255,255,0.2)" stroke-width="10" stroke-dasharray="22 13" class="q-spin-slow"/>
+                    <circle cx="100" cy="100" r="50" stroke="rgba(255,255,255,0.08)" stroke-width="7" stroke-dasharray="9 18" class="q-spin-fast-rev"/>
+                    <path d="M100 84 L114 100 L100 116 L86 100 Z" fill="#ffffff" class="q-heartbeat"/>
+                </svg>
+                <span class="logo-wordmark">Hema AI</span>
+            </div>
+            <button class="ghost-btn" onclick="toggleSidebar()" aria-label="Close sidebar">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <button class="new-chat-btn" onclick="clearMemory()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New Chat
+        </button>
+
+        <div class="history-section">
+            <p class="section-label">Recent</p>
+            <div class="history-item" onclick="loadHistory('Quantum computing basics')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Quantum computing basics
+            </div>
+            <div class="history-item" onclick="loadHistory('Explain general relativity')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Explain general relativity
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="profile">
+                <div class="profile-pic" id="sidebar-avatar">U</div>
+                <div>
+                    <div class="profile-name" id="sidebar-name">User Profile</div>
+                    <div class="profile-sub">Free tier</div>
+                </div>
+            </div>
+            <button class="sidebar-clear-btn" onclick="clearMemory()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Clear Context
+            </button>
+        </div>
+    </aside>
+
+    <!-- ── Main ────────────────────────────────────── -->
+    <main class="chat-container">
+        <div id="fog-wrapper"></div>
+
+        <header class="header">
+            <button class="ghost-btn menu-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/>
+                </svg>
+            </button>
+            <div class="header-center">
+                <span class="session-label">Session</span>
+                <span class="mode-badge" id="mode-display">Hybrid</span>
+            </div>
+            <div class="header-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Active</span>
+            </div>
+        </header>
+
+        <section class="chat-box" id="chat-box" aria-live="polite">
+            <div class="welcome-container" id="welcome-screen">
+                <div class="welcome-logo">
+                    <svg viewBox="0 0 200 200" fill="none">
+                        <defs>
+                            <linearGradient id="qGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#606060"/>
+                            </linearGradient>
+                            <linearGradient id="qGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#a0a0a0"/><stop offset="100%" stop-color="#303030"/>
+                            </linearGradient>
+                            <radialGradient id="qGlow" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="rgba(255,255,255,0.13)"/>
+                                <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                            </radialGradient>
+                        </defs>
+                        <circle cx="100" cy="100" r="90" fill="url(#qGlow)" class="q-breathe"/>
+                        <circle cx="100" cy="100" r="84" stroke="url(#qGrad1)" stroke-width="1.8" stroke-dasharray="9 26 52 18" stroke-linecap="round" class="q-spin-slow"/>
+                        <circle cx="100" cy="100" r="70" stroke="url(#qGrad2)" stroke-width="3.5" stroke-dasharray="2 13 36 13" stroke-linecap="round" class="q-spin-fast-rev"/>
+                        <g class="q-breathe">
+                            <path d="M100 36 C133 62,133 138,100 164 C67 138,67 62,100 36Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.3" fill="none"/>
+                            <path d="M100 36 C133 62,133 138,100 164 C67 138,67 62,100 36Z" stroke="rgba(200,200,200,0.38)" stroke-width="1.3" fill="none" transform="rotate(60 100 100)"/>
+                            <path d="M100 36 C133 62,133 138,100 164 C67 138,67 62,100 36Z" stroke="rgba(140,140,140,0.25)" stroke-width="1.3" fill="none" transform="rotate(120 100 100)"/>
+                        </g>
+                        <path d="M100 77 L109 96 L128 100 L109 104 L100 123 L91 104 L72 100 L91 96 Z" fill="#ffffff" class="q-heartbeat"/>
+                    </svg>
+                </div>
+                <div class="welcome-title clickable-title" id="welcome-title" onclick="editName()" title="Click to change your name">
+                    Hello, I am <span>Hema</span>
+                </div>
+                <input type="text" id="name-input" class="name-input" placeholder="What should I call you?" onkeypress="saveName(event)">
+                <div class="welcome-subtitle" id="quote-container" style="font-style: italic;"></div>
+            </div>
+        </section>
+
+        <footer class="input-area">
+            <div class="modern-search-bar">
+                <button class="search-icon-btn" aria-label="Attach file" title="Attach file">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                </button>
+                <select id="module-select" class="module-selector" onchange="updateModePill(this.value)">
+                    <option value="hybrid">Hybrid</option>
+                    <option value="local">Local</option>
+                    <option value="web">Web</option>
+                </select>
+                <textarea id="user-input" placeholder="Message Hema..." rows="1" aria-label="Your message"></textarea>
+                <button class="send-icon-btn" id="send-btn" aria-label="Send message" onclick="sendMessage()">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="disclaimer-text">Hema AI can make mistakes. Consider verifying important information.</div>
+        </footer>
+    </main>
+</div>
+<script src="static/script.js"></script>
+</body>
+</html>
