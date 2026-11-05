@@ -135,7 +135,7 @@ LABEL_SMOOTHING          = 0.08
 WORD_DROPOUT_RATE        = 0.15
 VAL_SPLIT                = 0.10
 TEST_SPLIT               = 0.10
-RESUME                   = False  # scratch — no checkpoint loaded
+RESUME                   = os.environ.get("RESUME", "1").lower() in ("1", "true", "yes")
 CHECKPOINT_EVERY         = 25
 NUM_WORKERS              = 4 if _on_cuda else 0
 PREFETCH_FACTOR          = 2 if _on_cuda else None
@@ -645,16 +645,24 @@ def _load_with_vocab_transplant(ckpt_path, model, word2idx, device):
             f"{copied} weights copied exactly")
     return True, info
 
-if RESUME and os.path.exists("models/rnn_chatbot.pth"):
+start_epoch = 1
+prev_ep = 0
+ckpt_meta = None
+resume_target = "models/pretrained.pth" if (TRAINING_STAGE == 1 and os.path.exists("models/pretrained.pth")) else "models/rnn_chatbot.pth"
+
+if RESUME and os.path.exists(resume_target):
     try:
         ok, info = _load_with_vocab_transplant(
-            "models/rnn_chatbot.pth", model, word2idx, device)
+            resume_target, model, word2idx, device)
         if ok:
-            ckpt_meta = torch.load("models/rnn_chatbot.pth", map_location="cpu")
+            ckpt_meta = torch.load(resume_target, map_location="cpu")
             best_val_loss = ckpt_meta.get("best_val_loss", float("inf"))
             prev_ep       = ckpt_meta.get("epoch", 0)
-            _print(f"✅ Checkpoint resumed — {info}")
-            _print(f"   Previous best: epoch {prev_ep}, val_loss {best_val_loss:.4f}")
+            start_epoch   = prev_ep + 1
+            best_epoch    = prev_ep
+            best_weights  = copy.deepcopy(_raw_model.state_dict())
+            _print(f"✅ Checkpoint resumed from {resume_target} — {info}")
+            _print(f"   Previous best: epoch {prev_ep}, val_loss {best_val_loss:.4f} (resuming at epoch {start_epoch})")
         else:
             _print(f"⚠️  Checkpoint resume skipped ({info}) — starting fresh")
     except Exception as e:
@@ -843,6 +851,20 @@ scheduler = optim.lr_scheduler.OneCycleLR(
     div_factor=MAX_LR/BASE_LR, final_div_factor=100,
 )
 
+if RESUME and ckpt_meta and "optimizer" in ckpt_meta:
+    try:
+        optimizer.load_state_dict(ckpt_meta["optimizer"])
+        _print("✅ Optimizer state restored from checkpoint")
+    except Exception as e:
+        _print(f"⚠️ Optimizer state restore skipped: {e}")
+
+if RESUME and start_epoch > 1:
+    target_step = (start_epoch - 1) * steps_per_epoch
+    for _ in range(target_step):
+        if getattr(scheduler, '_step_count', 0) < getattr(scheduler, 'total_steps', float('inf')):
+            scheduler.step()
+    _print(f"✅ Scheduler advanced to epoch {start_epoch} (LR: {optimizer.param_groups[0]['lr']:.2e})")
+
 # ════════════════════════════════════════════════════════════════
 # HARD EXAMPLE MINING — per-sample loss history
 # ════════════════════════════════════════════════════════════════
@@ -863,12 +885,13 @@ def compute_sample_weights(dataset, smoothing=0.9):
 # LOG
 # ════════════════════════════════════════════════════════════════
 log_path = "models/training_log.csv"
-with open(log_path, "w", newline="") as f:
-    csv.writer(f).writerow([
-        "epoch","train_loss","val_loss","train_ppl","val_ppl",
-        "gap_ratio","lr","grad_norm","dropout","teacher_ratio",
-        "contrastive_loss","mixup_batches"
-    ])
+if not (RESUME and os.path.exists(log_path) and start_epoch > 1):
+    with open(log_path, "w", newline="") as f:
+        csv.writer(f).writerow([
+            "epoch","train_loss","val_loss","train_ppl","val_ppl",
+            "gap_ratio","lr","grad_norm","dropout","teacher_ratio",
+            "contrastive_loss","mixup_batches"
+        ])
 
 patience_counter = 0
 grad_norms = []
@@ -890,7 +913,7 @@ _print(f"{'='*70}\n")
 # ════════════════════════════════════════════════════════════════
 # TRAINING LOOP
 # ════════════════════════════════════════════════════════════════
-for epoch in range(1, EPOCHS + 1):
+for epoch in range(start_epoch, EPOCHS + 1):
     t0 = time.time()
 
     # ── Dropout annealing ────────────────────────────────────────────────────
