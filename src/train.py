@@ -98,10 +98,33 @@ _on_cuda = _torch.cuda.is_available()   # used throughout for device-aware setti
 # step ~4535). The shared network fabric is too unreliable for gradient syncs
 # on variable-length sequences. Single GPU is more stable and nearly as fast
 # since the model is embedding-dominated, not compute-bound.
-# Effective batch = 32 × 2 = 64  (same as DDP 16×2)
-BATCH_SIZE         = 32 if _on_cuda else 4
-ACCUMULATION_STEPS = 2  if _on_cuda else 8
-EPOCHS                   = 250
+# ── 75k Parameter LLM Model Architecture ──────────────────────────────────────
+# Exactly ~75,000 parameters:
+#   vocab=600, embed_size=32, num_heads=2, hidden_size=128, num_layers=3
+#   Embedding (600×32) + 3 Transformer Layers + Projection (32×600) = 76,576 params
+MODEL_PROFILE = os.environ.get("MODEL_PROFILE", "75k")
+
+if MODEL_PROFILE == "75k":
+    EMBED_SIZE   = 32
+    NUM_HEADS    = 2
+    HIDDEN_SIZE  = 128
+    NUM_LAYERS   = 3
+    TARGET_VOCAB = 600
+    _default_bs  = 32
+    _default_acc = 2
+else:
+    EMBED_SIZE   = 256
+    NUM_HEADS    = 4
+    HIDDEN_SIZE  = 1024
+    NUM_LAYERS   = 4
+    TARGET_VOCAB = None
+    _default_bs  = 32 if _on_cuda else 4
+    _default_acc = 2 if _on_cuda else 8
+
+# Effective batch = 32 × 2 = 64
+BATCH_SIZE         = int(os.environ.get("BATCH_SIZE", str(_default_bs)))
+ACCUMULATION_STEPS = int(os.environ.get("ACCUMULATION_STEPS", str(_default_acc)))
+EPOCHS                   = int(os.environ.get("EPOCHS", "50" if os.environ.get("TRAINING_STAGE", "1") == "1" else "250"))
 EARLY_STOPPING_PATIENCE  = 25
 EARLY_STOPPING_MIN_DELTA = 0.001
 BASE_LR                  = 5e-5
@@ -125,26 +148,7 @@ MAX_SEQ_LEN              = 256
 # ════════════════════════════════════════════════════════════════
 # TRAINING STAGE  ← 1 = pretrain | 2 = SFT | 3 = DPO
 # ════════════════════════════════════════════════════════════════
-TRAINING_STAGE = 1   # ← 1 = pretrain (user selected)
-
-# ── 75k Parameter LLM Model Architecture ──────────────────────────────────────
-# Exactly ~75,000 parameters:
-#   vocab=600, embed_size=32, num_heads=2, hidden_size=128, num_layers=3
-#   Embedding (600×32) + 3 Transformer Layers + Projection (32×600) = 76,576 params
-MODEL_PROFILE = os.environ.get("MODEL_PROFILE", "75k")
-
-if MODEL_PROFILE == "75k":
-    EMBED_SIZE   = 32
-    NUM_HEADS    = 2
-    HIDDEN_SIZE  = 128
-    NUM_LAYERS   = 3
-    TARGET_VOCAB = 600
-else:
-    EMBED_SIZE   = 256
-    NUM_HEADS    = 4
-    HIDDEN_SIZE  = 1024
-    NUM_LAYERS   = 4
-    TARGET_VOCAB = None
+TRAINING_STAGE = int(os.environ.get("TRAINING_STAGE", "1"))   # ← 1 = pretrain (user selected)
 
 if TRAINING_STAGE == 1:
     MAX_LR          = 1e-3    # higher LR for pretraining
@@ -334,6 +338,9 @@ def aug_paraphrase(inp):
 
 def augment_pair(inp, out):
     results = [(inp, out)]
+    # In Stage 1 Pretraining, preserve authentic grammatical text sequences
+    if TRAINING_STAGE == 1:
+        return results
     # On CUDA keep 2x augmentation (fast epochs); on CPU/MPS use full 5x
     import torch as _t
     _fast = _t.cuda.is_available()
