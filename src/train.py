@@ -660,7 +660,7 @@ if RESUME and os.path.exists(resume_target):
             prev_ep       = ckpt_meta.get("epoch", 0)
             start_epoch   = prev_ep + 1
             best_epoch    = prev_ep
-            best_weights  = copy.deepcopy(_raw_model.state_dict())
+            best_weights  = copy.deepcopy(model.state_dict())
             _print(f"✅ Checkpoint resumed from {resume_target} — {info}")
             _print(f"   Previous best: epoch {prev_ep}, val_loss {best_val_loss:.4f} (resuming at epoch {start_epoch})")
         else:
