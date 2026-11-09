@@ -1,0 +1,22 @@
+# Core Machine Learning & Math
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.2.0
+torch>=2.0.0
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.4
+datasets>=2.14.0
+pickle-mixin
+
+# Web Framework & Serving
+flask>=3.0.0
+requests>=2.31.0
+
+# Document & Multimodal Processing
+pypdf>=3.17.0
+Pillow>=10.0.0
+
+# Information Retrieval & Web Search
+wikipedia>=1.4.0
+googlesearch-python>=1.2.3
+playwright>=1.40.0
